@@ -60,6 +60,18 @@ def geocode_city(city_name: str) -> Optional[Dict[str, Any]]:
     if not city_cleaned:
         return None
 
+    # Common aliases & abbreviations
+    aliases = {
+        "ny": "New York",
+        "nyc": "New York",
+        "la": "Los Angeles",
+        "sf": "San Francisco",
+        "dc": "Washington",
+        "kl": "Kuala Lumpur",
+        "faisalabd": "Faisalabad"
+    }
+    city_cleaned = aliases.get(city_cleaned.lower(), city_cleaned)
+
     url = "https://geocoding-api.open-meteo.com/v1/search"
     
     # 1. Exact / direct query

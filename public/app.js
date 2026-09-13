@@ -41,118 +41,13 @@ function getWeatherEmoji(conditionText) {
   return "🌤️";
 }
 
-// Initial check on load
+// Initial load
 document.addEventListener("DOMContentLoaded", () => {
-  checkStatus();
   fetchTraceList();
-});
-
-async function checkStatus() {
-  try {
-    const res = await fetch("/api/status");
-    const data = await res.json();
-    appConfig = data;
-
-    updateHeaderStatus();
-
-    if (data.configured) {
-      document.getElementById("keyModal").classList.add("hidden");
-      // Initial demo query to populate the dashboard right away!
-      submitPrompt("What is the weather right now in Tokyo?", false);
-    } else {
-      document.getElementById("keyModal").classList.remove("hidden");
-    }
-  } catch (err) {
-    console.warn("Could not connect to /api/status, running in offline mode:", err);
-  }
-}
-
-function updateHeaderStatus() {
-  const pill = document.getElementById("providerLabel");
-  const modelText = appConfig.model || "gemini-2.5-flash";
-  pill.textContent = `${appConfig.provider === "gemini" ? "Gemini" : "OpenAI"}: ${modelText}`;
-}
-
-function togglePasswordVisibility(inputId) {
-  const input = document.getElementById(inputId);
-  input.type = input.type === "password" ? "text" : "password";
-}
-
-function openKeyModal() {
-  const modal = document.getElementById("keyModal");
-  modal.classList.remove("hidden");
-
-  const hint = document.getElementById("apiKeyStatusHint");
-  const deleteBtn = document.getElementById("btnDeleteKey");
-
-  if (appConfig.configured && appConfig.masked_key) {
-    hint.innerHTML = `<span style="color: #34d399;">✓ Active key in use: <strong>${appConfig.masked_key}</strong></span>. Enter a new key to change, click <em>Go Back</em>, or click <em>Delete Key</em>.`;
-    if (deleteBtn) deleteBtn.classList.remove("hidden");
-  } else {
-    hint.innerHTML = `Don't have one? Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.`;
-    if (deleteBtn) deleteBtn.classList.add("hidden");
-  }
-}
-
-function closeKeyModal() {
-  document.getElementById("keyModal").classList.add("hidden");
-}
-
-async function deleteApiKey() {
-  if (!confirm("Are you sure you want to remove your API key? The key will be deleted from .env and the agent will revert to Demo Mode.")) {
-    return;
-  }
-
-  const deleteBtn = document.getElementById("btnDeleteKey");
-  if (deleteBtn) {
-    deleteBtn.disabled = true;
-    deleteBtn.textContent = "Removing...";
-  }
-
-  try {
-    const res = await fetch("/api/delete-key", { method: "POST" });
-    const data = await res.json();
-    if (res.ok) {
-      appConfig.configured = false;
-      appConfig.provider = "simulation";
-      appConfig.masked_key = null;
-      document.getElementById("apiKeyInput").value = "";
-      if (deleteBtn) deleteBtn.classList.add("hidden");
-      document.getElementById("providerLabel").textContent = "Live Demo (Open-Meteo)";
-      document.getElementById("apiKeyStatusHint").innerHTML = `API key removed. Running in Demo Mode (Open-Meteo real weather).`;
-      alert("API key successfully deleted! Switched to Demo Mode.");
-      closeKeyModal();
-    } else {
-      alert("Failed to delete API key: " + (data.error || "Unknown error"));
-    }
-  } catch (err) {
-    alert("Error communicating with server: " + err.message);
-  } finally {
-    if (deleteBtn) {
-      deleteBtn.disabled = false;
-      deleteBtn.textContent = "🗑️ Delete Key";
-    }
-  }
-}
-
-function continueInDemoMode() {
-  closeKeyModal();
-  appConfig.configured = true;
-  appConfig.provider = "simulation";
-  appConfig.model = "zero-key-live-weather";
-  document.getElementById("providerLabel").textContent = "Live Demo (Open-Meteo)";
+  // Automatically populate dashboard with initial Tokyo query
   submitPrompt("What is the weather right now in Tokyo?", false);
-}
 
-// Close modals when clicking the dark backdrop
-document.addEventListener("DOMContentLoaded", () => {
-  const keyModal = document.getElementById("keyModal");
-  if (keyModal) {
-    keyModal.addEventListener("click", (e) => {
-      if (e.target.id === "keyModal") closeKeyModal();
-    });
-  }
-
+  // Close traces modal when clicking backdrop
   const tracesModal = document.getElementById("tracesModal");
   if (tracesModal) {
     tracesModal.addEventListener("click", (e) => {
@@ -162,69 +57,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      closeKeyModal();
       closeTracesModal();
     }
   });
 });
-
-async function handleKeySubmit() {
-  const apiKey = document.getElementById("apiKeyInput").value.trim();
-  const model = document.getElementById("modelSelect").value;
-  const saveToEnv = document.getElementById("saveLocalEnv").checked;
-
-  // If no new key entered but one is already configured in .env/session, simply close
-  if (!apiKey && appConfig.configured) {
-    appConfig.model = model;
-    updateHeaderStatus();
-    closeKeyModal();
-    return;
-  }
-
-  if (!apiKey) {
-    alert("Please enter a valid Gemini or OpenAI API Key, or click '← Go Back'.");
-    return;
-  }
-
-  const btn = document.getElementById("saveKeyBtn");
-  btn.disabled = true;
-  btn.innerHTML = `<span class="spinner-small"></span> Connecting...`;
-
-  const provider = apiKey.startsWith("AIza") ? "gemini" : (apiKey.startsWith("sk-") ? "openai" : "gemini");
-
-  try {
-    const res = await fetch("/api/set-key", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: apiKey,
-        provider: provider,
-        model: model,
-        save_to_env: saveToEnv
-      })
-    });
-
-    const result = await res.json();
-    if (res.ok) {
-      appConfig.configured = true;
-      appConfig.provider = provider;
-      appConfig.model = model;
-      appConfig.masked_key = apiKey.slice(0, 4) + "..." + apiKey.slice(-4);
-      updateHeaderStatus();
-      closeKeyModal();
-
-      // Trigger initial query
-      submitPrompt("What is the weather right now in Tokyo?", false);
-    } else {
-      alert("Error: " + (result.error || "Failed to set API key."));
-    }
-  } catch (err) {
-    alert("Network error communicating with server.");
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `<span>Save & Enter Dashboard</span> 🚀`;
-  }
-}
 
 function applyQuickPrompt(text) {
   document.getElementById("promptInput").value = text;

@@ -192,6 +192,45 @@ class WeatherAgent:
 
         is_forecast = any(w in user_query.lower() for w in ["forecast", "tomorrow", "week", "days", "weekend"])
         
+        # Check comparison query (e.g. "NY vs Paris" or "How is the weather in New York compared to Paris?")
+        comp_match = re.search(r"([A-Za-z\s]+?)\s+(?:vs\.?|versus|compared\s+to)\s+([A-Za-z\s\?]+)", user_query, re.IGNORECASE)
+        if comp_match:
+            raw1 = comp_match.group(1).strip()
+            raw2 = comp_match.group(2).strip()
+            c1 = re.sub(r"(?i)\b(what|how|is|the|weather|in|like|between|currently|right now)\b", "", raw1).strip()
+            c2 = re.sub(r"(?i)\b(what|how|is|the|weather|in|like|currently|right now|\?)\b", "", raw2).strip()
+            c1 = re.sub(r"[^A-Za-z\s]", "", c1).strip()
+            c2 = re.sub(r"[^A-Za-z\s]", "", c2).strip()
+            if c1 and c2:
+                tracer.end_span(span_id, status="success", output_data={"tool_calls_requested": ["get_current_weather", "get_current_weather"]}, tokens={"prompt_tokens": 55, "completion_tokens": 25, "total_tokens": 80})
+
+                span1 = tracer.start_span(name="get_current_weather", span_type="TOOL_CALL", input_data={"city": c1})
+                w1 = get_current_weather(c1)
+                tracer.end_span(span1, status="error" if "error" in w1 else "success", output_data=w1)
+
+                span2 = tracer.start_span(name="get_current_weather", span_type="TOOL_CALL", input_data={"city": c2})
+                w2 = get_current_weather(c2)
+                tracer.end_span(span2, status="error" if "error" in w2 else "success", output_data=w2)
+
+                synth_span = tracer.start_span(name="openai_response_synthesis (local runner)", span_type="LLM_CALL", input_data={"tool_results": 2}, metadata={"turn": 2})
+
+                if "error" in w1 and "error" in w2:
+                    ans = f"⚠️ Could not fetch weather comparison: {w1.get('error', '')} | {w2.get('error', '')}"
+                else:
+                    ans = f"⚖️ **Weather Comparison: {c1.title()} vs {c2.title()}**\n\n"
+                    if "current_weather" in w1:
+                        cw1, loc1 = w1["current_weather"], w1["location"]
+                        ans += f"📍 **{loc1['city']}, {loc1['country']}**:\n- **Condition**: {cw1['condition']}\n- **Temperature**: {cw1['temperature']} (Feels like: {cw1['feels_like']})\n- **Humidity**: {cw1['humidity']} | **Wind**: {cw1['wind_speed']}\n\n"
+                    if "current_weather" in w2:
+                        cw2, loc2 = w2["current_weather"], w2["location"]
+                        ans += f"📍 **{loc2['city']}, {loc2['country']}**:\n- **Condition**: {cw2['condition']}\n- **Temperature**: {cw2['temperature']} (Feels like: {cw2['feels_like']})\n- **Humidity**: {cw2['humidity']} | **Wind**: {cw2['wind_speed']}\n\n"
+                    ans += "💡 Real-time observation data verified via Open-Meteo."
+
+                tracer.end_span(synth_span, status="success", output_data={"response_preview": ans[:100]}, tokens={"prompt_tokens": 110, "completion_tokens": 140, "total_tokens": 250})
+                tracer.complete(ans, status="success")
+                tracer.save_json()
+                return ans, tracer
+
         # Robust city extraction heuristic for simulation mode
         clean_q = re.sub(r"(?i)\b(what|how|is|the|weather|like|right now|currently|current|tell me|please|show|today|tomorrow|this week|weekend|forecast|should i carry an umbrella in|should i bring an umbrella in|do i need an umbrella in|will it rain in|in|for|at|of|evening|morning|night|afternoon)\b", "", user_query)
         match = re.search(r"\b(?:in|for|at|of)\s+([A-Za-z\s]+?)(?:\s+(?:right\s+now|now|today|tomorrow|this\s+week|this\s+weekend|evening|morning|night|afternoon)|\?|\.|\,|$)", user_query, re.IGNORECASE)

@@ -32,13 +32,6 @@ TRACES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "traces")
 os.makedirs(PUBLIC_DIR, exist_ok=True)
 os.makedirs(TRACES_DIR, exist_ok=True)
 
-# In-memory session key if user provides via frontend
-RUNTIME_CONFIG = {
-    "gemini_api_key": os.getenv("GEMINI_API_KEY") if os.getenv("GEMINI_API_KEY") != "your_gemini_api_key_here" else None,
-    "openai_api_key": os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") != "your_openai_api_key_here" else None,
-    "model": os.getenv("OPENAI_MODEL", "gemini-2.5-flash-lite")
-}
-
 
 class WeatherAgentHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -67,22 +60,11 @@ class WeatherAgentHandler(SimpleHTTPRequestHandler):
         path = parsed.path
 
         if path == "/api/status":
-            has_gemini = bool(RUNTIME_CONFIG["gemini_api_key"] and RUNTIME_CONFIG["gemini_api_key"].strip())
-            has_openai = bool(RUNTIME_CONFIG["openai_api_key"] and RUNTIME_CONFIG["openai_api_key"].strip())
-            
-            masked_key = ""
-            if has_gemini:
-                k = RUNTIME_CONFIG["gemini_api_key"]
-                masked_key = f"{k[:4]}...{k[-4:]}" if len(k) > 8 else "***"
-            elif has_openai:
-                k = RUNTIME_CONFIG["openai_api_key"]
-                masked_key = f"{k[:4]}...{k[-4:]}" if len(k) > 8 else "***"
-
             self._send_json({
-                "configured": has_gemini or has_openai,
-                "provider": "gemini" if has_gemini else ("openai" if has_openai else "simulation"),
-                "model": RUNTIME_CONFIG["model"],
-                "masked_key": masked_key
+                "configured": True,
+                "provider": "open-meteo",
+                "model": "Open-Meteo Real-Time Engine (Zero-Key)",
+                "engine": "Open-Meteo Live Free API"
             })
             return
 
@@ -140,18 +122,6 @@ class WeatherAgentHandler(SimpleHTTPRequestHandler):
                         pass
                 self._send_json({"status": "success", "message": f"Deleted {len(files)} traces."})
                 return
-            elif path == "/api/key" or path == "/api/delete-key":
-                RUNTIME_CONFIG["gemini_api_key"] = None
-                RUNTIME_CONFIG["openai_api_key"] = None
-                os.environ.pop("GEMINI_API_KEY", None)
-                os.environ.pop("OPENAI_API_KEY", None)
-                try:
-                    with open(".env", "w", encoding="utf-8") as env_f:
-                        env_f.write("# API Keys removed\nOPENAI_MODEL=gemini-2.5-flash\n")
-                except Exception:
-                    pass
-                self._send_json({"status": "success", "message": "API key successfully removed."})
-                return
             elif path.startswith("/api/traces/"):
                 trace_id = path.replace("/api/traces/", "").replace(".json", "")
                 fpath = os.path.join(TRACES_DIR, f"{trace_id}.json")
@@ -194,77 +164,14 @@ class WeatherAgentHandler(SimpleHTTPRequestHandler):
                     self._send_json({"error": "Trace not found"}, status=HTTPStatus.NOT_FOUND)
                 return
 
-            elif path == "/api/delete-key":
-                RUNTIME_CONFIG["gemini_api_key"] = None
-                RUNTIME_CONFIG["openai_api_key"] = None
-                os.environ.pop("GEMINI_API_KEY", None)
-                os.environ.pop("OPENAI_API_KEY", None)
-                try:
-                    with open(".env", "w", encoding="utf-8") as env_f:
-                        env_f.write("# API Keys removed\nOPENAI_MODEL=gemini-2.5-flash\n")
-                except Exception:
-                    pass
-                self._send_json({"status": "success", "message": "API key successfully removed."})
-                return
-
-            if path == "/api/set-key":
-                key = data.get("api_key", "").strip()
-                provider = data.get("provider", "gemini").lower()
-                model = data.get("model", "").strip()
-
-                if not key:
-                    self._send_json({"error": "API Key cannot be empty."}, status=HTTPStatus.BAD_REQUEST)
-                    return
-
-                if provider == "gemini":
-                    RUNTIME_CONFIG["gemini_api_key"] = key
-                    RUNTIME_CONFIG["model"] = model or "gemini-2.5-flash"
-                    os.environ["GEMINI_API_KEY"] = key
-                    os.environ["OPENAI_MODEL"] = RUNTIME_CONFIG["model"]
-                else:
-                    RUNTIME_CONFIG["openai_api_key"] = key
-                    RUNTIME_CONFIG["model"] = model or "gpt-4o-mini"
-                    os.environ["OPENAI_API_KEY"] = key
-                    os.environ["OPENAI_MODEL"] = RUNTIME_CONFIG["model"]
-
-                # Save to local .env optionally
-                if data.get("save_to_env", False):
-                    try:
-                        with open(".env", "w", encoding="utf-8") as env_f:
-                            if provider == "gemini":
-                                env_f.write(f"GEMINI_API_KEY={key}\nOPENAI_MODEL={RUNTIME_CONFIG['model']}\n")
-                            else:
-                                env_f.write(f"OPENAI_API_KEY={key}\nOPENAI_MODEL={RUNTIME_CONFIG['model']}\n")
-                    except Exception:
-                        pass
-
-                self._send_json({
-                    "status": "success",
-                    "message": f"Successfully activated {provider.title()} API Key!",
-                    "provider": provider,
-                    "model": RUNTIME_CONFIG["model"]
-                })
-                return
-
             elif path == "/api/chat":
                 query = data.get("query", "").strip()
                 if not query:
                     self._send_json({"error": "Query cannot be empty."}, status=HTTPStatus.BAD_REQUEST)
                     return
 
-                # Check if user sent a one-time key in request
-                custom_key = data.get("api_key")
-                custom_model = data.get("model")
-
-                active_key = custom_key or RUNTIME_CONFIG["gemini_api_key"] or RUNTIME_CONFIG["openai_api_key"]
-                active_model = custom_model or RUNTIME_CONFIG["model"]
-
-                # Instantiate Agent
-                base_url = None
-                if RUNTIME_CONFIG["gemini_api_key"] or (custom_key and "AIza" in custom_key):
-                    base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
-
-                agent = WeatherAgent(api_key=active_key, model=active_model, base_url=base_url)
+                # Instantiate Agent using Open-Meteo
+                agent = WeatherAgent()
 
                 # Run agent with tracing
                 answer, tracer = agent.run(query)

@@ -16,75 +16,6 @@
   <div class="bg-glow bg-glow-2"></div>
   <div class="bg-grid"></div>
 
-  <!-- API Key Onboarding Modal / Gate -->
-  <div id="keyModal" class="modal-overlay">
-    <div class="modal-card">
-      <div class="modal-header flex-between">
-        <div>
-          <div class="modal-badge">
-            <span class="sparkle">✨</span> Gemini & OpenAI Powered
-          </div>
-          <h2>Connect Your AI Agent</h2>
-          <p>Enter your <strong>Google Gemini API Key</strong> to unlock multi-turn agent reasoning, live Open-Meteo tool calling, and full observability tracing.</p>
-        </div>
-        <button type="button" class="btn-close" onclick="closeKeyModal()" title="Go Back to Dashboard">✕</button>
-      </div>
-
-      <form id="keyForm" onsubmit="event.preventDefault(); handleKeySubmit();">
-        <div class="form-group">
-          <label for="apiKeyInput">Gemini API Key</label>
-          <div class="input-password-wrapper">
-            <input 
-              type="password" 
-              id="apiKeyInput" 
-              placeholder="AIzaSy... (or leave blank if saved in .env)" 
-              autocomplete="off" 
-              spellcheck="false"
-            >
-            <button type="button" class="btn-toggle-pw" onclick="togglePasswordVisibility('apiKeyInput')">👁️</button>
-          </div>
-          <small class="form-hint" id="apiKeyStatusHint">
-            Don't have one? Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
-          </small>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label for="modelSelect">AI Model</label>
-            <select id="modelSelect">
-              <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite (Recommended - Fast & High Quota)</option>
-              <option value="gemini-2.5-flash">gemini-2.5-flash (Standard)</option>
-              <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Reasoning)</option>
-              <option value="gpt-4o-mini">OpenAI gpt-4o-mini</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-checkbox">
-          <input type="checkbox" id="saveLocalEnv" checked>
-          <label for="saveLocalEnv">Save key to local <code>.env</code> file</label>
-        </div>
-
-        <div class="modal-actions modal-actions-stack">
-          <button type="submit" class="btn btn-primary btn-glow" id="saveKeyBtn">
-            <span>Save & Enter Dashboard</span> 🚀
-          </button>
-          <div class="modal-actions-row">
-            <button type="button" class="btn btn-secondary flex-1" onclick="continueInDemoMode()">
-              Demo Mode ⚡
-            </button>
-            <button type="button" class="btn btn-outline flex-1" onclick="closeKeyModal()">
-              ← Go Back
-            </button>
-            <button type="button" class="btn btn-outline btn-danger flex-1 hidden" id="btnDeleteKey" onclick="deleteApiKey()">
-              🗑️ Delete Key
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- Past Traces Modal -->
   <div id="tracesModal" class="modal-overlay hidden">
     <div class="modal-card modal-wide">
@@ -123,10 +54,9 @@
           <span class="status-dot"></span>
           <span id="agentStatusLabel">Ready</span>
         </div>
-        <div class="provider-pill" id="providerPill" onclick="openKeyModal()">
-          <span class="provider-icon">💎</span>
-          <span id="providerLabel">Gemini</span>
-          <span class="edit-hint">Change ⚙️</span>
+        <div class="provider-pill no-pointer" id="providerPill">
+          <span class="provider-icon">⚡</span>
+          <span id="providerLabel">Open-Meteo (100% Free • No API Key)</span>
         </div>
         <button class="btn btn-outline btn-sm" onclick="openTracesModal()">
           📜 Traces <span id="traceCounterBadge" class="badge-count">0</span>
@@ -313,10 +243,9 @@
     <!-- Footer -->
     <footer class="app-footer">
       <div>
-        <span>🌤️ MeteoAgent AI</span> • OpenAI SDK + Google Gemini • Open-Meteo Free API (No Key Required)
+        <span>🌤️ MeteoAgent AI</span> • Real-Time Meteorological Intelligence • Open-Meteo Free Global API (Zero Keys Required)
       </div>
       <div class="footer-links">
-        <a href="javascript:void(0)" onclick="openKeyModal()">Configure API Key</a>
         <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo Documentation</a>
       </div>
     </footer>
