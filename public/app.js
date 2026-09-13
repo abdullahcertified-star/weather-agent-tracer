@@ -83,15 +83,56 @@ function openKeyModal() {
   modal.classList.remove("hidden");
 
   const hint = document.getElementById("apiKeyStatusHint");
+  const deleteBtn = document.getElementById("btnDeleteKey");
+
   if (appConfig.configured && appConfig.masked_key) {
-    hint.innerHTML = `<span style="color: #34d399;">✓ Active key in use: <strong>${appConfig.masked_key}</strong></span>. Enter a new key to change, or click <em>Go Back</em>.`;
+    hint.innerHTML = `<span style="color: #34d399;">✓ Active key in use: <strong>${appConfig.masked_key}</strong></span>. Enter a new key to change, click <em>Go Back</em>, or click <em>Delete Key</em>.`;
+    if (deleteBtn) deleteBtn.classList.remove("hidden");
   } else {
     hint.innerHTML = `Don't have one? Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.`;
+    if (deleteBtn) deleteBtn.classList.add("hidden");
   }
 }
 
 function closeKeyModal() {
   document.getElementById("keyModal").classList.add("hidden");
+}
+
+async function deleteApiKey() {
+  if (!confirm("Are you sure you want to remove your API key? The key will be deleted from .env and the agent will revert to Demo Mode.")) {
+    return;
+  }
+
+  const deleteBtn = document.getElementById("btnDeleteKey");
+  if (deleteBtn) {
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = "Removing...";
+  }
+
+  try {
+    const res = await fetch("/api/delete-key", { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      appConfig.configured = false;
+      appConfig.provider = "simulation";
+      appConfig.masked_key = null;
+      document.getElementById("apiKeyInput").value = "";
+      if (deleteBtn) deleteBtn.classList.add("hidden");
+      document.getElementById("providerLabel").textContent = "Live Demo (Open-Meteo)";
+      document.getElementById("apiKeyStatusHint").innerHTML = `API key removed. Running in Demo Mode (Open-Meteo real weather).`;
+      alert("API key successfully deleted! Switched to Demo Mode.");
+      closeKeyModal();
+    } else {
+      alert("Failed to delete API key: " + (data.error || "Unknown error"));
+    }
+  } catch (err) {
+    alert("Error communicating with server: " + err.message);
+  } finally {
+    if (deleteBtn) {
+      deleteBtn.disabled = false;
+      deleteBtn.textContent = "🗑️ Delete Key";
+    }
+  }
 }
 
 function continueInDemoMode() {

@@ -140,6 +140,18 @@ class WeatherAgentHandler(SimpleHTTPRequestHandler):
                         pass
                 self._send_json({"status": "success", "message": f"Deleted {len(files)} traces."})
                 return
+            elif path == "/api/key" or path == "/api/delete-key":
+                RUNTIME_CONFIG["gemini_api_key"] = None
+                RUNTIME_CONFIG["openai_api_key"] = None
+                os.environ.pop("GEMINI_API_KEY", None)
+                os.environ.pop("OPENAI_API_KEY", None)
+                try:
+                    with open(".env", "w", encoding="utf-8") as env_f:
+                        env_f.write("# API Keys removed\nOPENAI_MODEL=gemini-2.5-flash\n")
+                except Exception:
+                    pass
+                self._send_json({"status": "success", "message": "API key successfully removed."})
+                return
             elif path.startswith("/api/traces/"):
                 trace_id = path.replace("/api/traces/", "").replace(".json", "")
                 fpath = os.path.join(TRACES_DIR, f"{trace_id}.json")
@@ -180,6 +192,19 @@ class WeatherAgentHandler(SimpleHTTPRequestHandler):
                     self._send_json({"status": "success", "message": f"Deleted trace {trace_id}."})
                 else:
                     self._send_json({"error": "Trace not found"}, status=HTTPStatus.NOT_FOUND)
+                return
+
+            elif path == "/api/delete-key":
+                RUNTIME_CONFIG["gemini_api_key"] = None
+                RUNTIME_CONFIG["openai_api_key"] = None
+                os.environ.pop("GEMINI_API_KEY", None)
+                os.environ.pop("OPENAI_API_KEY", None)
+                try:
+                    with open(".env", "w", encoding="utf-8") as env_f:
+                        env_f.write("# API Keys removed\nOPENAI_MODEL=gemini-2.5-flash\n")
+                except Exception:
+                    pass
+                self._send_json({"status": "success", "message": "API key successfully removed."})
                 return
 
             if path == "/api/set-key":
