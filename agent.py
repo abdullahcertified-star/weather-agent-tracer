@@ -42,7 +42,7 @@ class WeatherAgent:
         if gemini_key and gemini_key.strip() and gemini_key != "your_gemini_api_key_here":
             self.api_key = api_key or gemini_key
             self.base_url = base_url or os.getenv("OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
-            self.model = model or os.getenv("OPENAI_MODEL", "gemini-2.5-flash")
+            self.model = model or os.getenv("OPENAI_MODEL", "gemini-2.5-flash-lite")
         else:
             self.api_key = api_key or openai_key
             self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
@@ -193,19 +193,18 @@ class WeatherAgent:
         is_forecast = any(w in user_query.lower() for w in ["forecast", "tomorrow", "week", "days", "weekend"])
         
         # Robust city extraction heuristic for simulation mode
-        clean_q = re.sub(r"(?i)\b(what|how|is|the|weather|like|right now|currently|current|tell me|please|show|today|tomorrow|this week|weekend|forecast)\b", "", user_query)
-        match = re.search(r"\b(?:in|for|at|of)\s+([A-Za-z\s]+?)(?:\?|\.|\,|$)", user_query, re.IGNORECASE)
+        clean_q = re.sub(r"(?i)\b(what|how|is|the|weather|like|right now|currently|current|tell me|please|show|today|tomorrow|this week|weekend|forecast|should i carry an umbrella in|should i bring an umbrella in|do i need an umbrella in|will it rain in|in|for|at|of|evening|morning|night|afternoon)\b", "", user_query)
+        match = re.search(r"\b(?:in|for|at|of)\s+([A-Za-z\s]+?)(?:\s+(?:right\s+now|now|today|tomorrow|this\s+week|this\s+weekend|evening|morning|night|afternoon)|\?|\.|\,|$)", user_query, re.IGNORECASE)
         if match:
             city_candidate = match.group(1).strip()
-            # remove trailing modifiers
-            city_candidate = re.sub(r"(?i)\b(right now|now|today|tomorrow|this week|weekend)\b", "", city_candidate).strip()
+            city_candidate = re.sub(r"(?i)\b(right now|now|today|tomorrow|this week|weekend|evening|morning|night|afternoon)\b", "", city_candidate).strip()
             city = city_candidate if city_candidate else clean_q.strip()
         else:
             city = clean_q.strip()
 
         city = re.sub(r"[^A-Za-z\s]", "", city).strip()
         if not city:
-            city = "London"  # sensible default if unparseable
+            city = "London"
 
         selected_tool = "get_weather_forecast" if is_forecast else "get_current_weather"
         tracer.end_span(span_id, status="success", output_data={"tool_calls_requested": [selected_tool]}, tokens={"prompt_tokens": 42, "completion_tokens": 18, "total_tokens": 60})
@@ -234,12 +233,33 @@ class WeatherAgent:
             metadata={"turn": 2}
         )
 
+        # Specific recommendation check (e.g. umbrella inquiry)
+        umbrella_advice = ""
+        if "umbrella" in user_query.lower() or "rain" in user_query.lower():
+            will_rain = False
+            if is_forecast and "forecast" in tool_res:
+                for day in tool_res["forecast"]:
+                    prob = int(re.sub(r"[^\d]", "", day.get("precipitation_probability", "0")) or 0)
+                    if prob >= 35 or "rain" in day.get("condition", "").lower() or "drizzle" in day.get("condition", "").lower():
+                        will_rain = True
+                        break
+            elif "current_weather" in tool_res:
+                cw = tool_res["current_weather"]
+                if "rain" in cw.get("condition", "").lower() or "drizzle" in cw.get("condition", "").lower():
+                    will_rain = True
+
+            if will_rain:
+                umbrella_advice = "☔ **Yes, you should carry an umbrella!** Rain or showers are expected.\n\n"
+            else:
+                umbrella_advice = "☀️ **No umbrella needed!** Dry or clear conditions are anticipated.\n\n"
+
         if "error" in tool_res:
             ans = f"⚠️ Could not fetch weather: {tool_res['error']}"
         elif not is_forecast:
             cw = tool_res["current_weather"]
             loc = tool_res["location"]
             ans = (
+                f"{umbrella_advice}"
                 f"🌤️ Current Weather in **{loc['city']}, {loc['country']}**:\n"
                 f"- **Condition**: {cw['condition']}\n"
                 f"- **Temperature**: {cw['temperature']} (Feels like: {cw['feels_like']})\n"
@@ -251,7 +271,7 @@ class WeatherAgent:
             )
         else:
             loc = tool_res["location"]
-            lines = [f"📅 **{tool_res['forecast_days']}-Day Weather Forecast for {loc['city']}, {loc['country']}**:"]
+            lines = [f"{umbrella_advice}📅 **{tool_res['forecast_days']}-Day Weather Forecast for {loc['city']}, {loc['country']}**:"]
             for f in tool_res["forecast"]:
                 lines.append(
                     f"• **{f['date']}**: {f['condition']} | Max: {f['max_temp']}, Min: {f['min_temp']} | Rain Prob: {f['precipitation_probability']}"

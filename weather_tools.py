@@ -50,8 +50,13 @@ def geocode_city(city_name: str) -> Optional[Dict[str, Any]]:
     Includes intelligent typo-tolerance and prefix matching.
     """
     import difflib
+    import re
 
-    city_cleaned = city_name.strip()
+    # Remove conversational / temporal words that might be attached
+    cleaned = re.sub(r"(?i)\b(morning|afternoon|evening|night|tonight|today|tomorrow|weekend|weather|forecast|right now|currently|umbrella)\b", "", city_name).strip()
+    city_cleaned = cleaned if cleaned else city_name.strip()
+    city_cleaned = re.sub(r"[^A-Za-z\s\-\']", "", city_cleaned).strip()
+    
     if not city_cleaned:
         return None
 

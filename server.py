@@ -36,7 +36,7 @@ os.makedirs(TRACES_DIR, exist_ok=True)
 RUNTIME_CONFIG = {
     "gemini_api_key": os.getenv("GEMINI_API_KEY") if os.getenv("GEMINI_API_KEY") != "your_gemini_api_key_here" else None,
     "openai_api_key": os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") != "your_openai_api_key_here" else None,
-    "model": os.getenv("OPENAI_MODEL", "gemini-2.5-flash")
+    "model": os.getenv("OPENAI_MODEL", "gemini-2.5-flash-lite")
 }
 
 
