@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeteoAgent AI — Real-Time Weather & Execution Tracing</title>
+  <meta name="description" content="Intelligent AI Weather Agent powered by OpenAI SDK and Google Gemini with Open-Meteo real-time global weather and interactive execution tracing.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Atmospheric Animated Background -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="bg-grid"></div>
+
+  <!-- API Key Onboarding Modal / Gate -->
+  <div id="keyModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header flex-between">
+        <div>
+          <div class="modal-badge">
+            <span class="sparkle">✨</span> Gemini & OpenAI Powered
+          </div>
+          <h2>Connect Your AI Agent</h2>
+          <p>Enter your <strong>Google Gemini API Key</strong> to unlock multi-turn agent reasoning, live Open-Meteo tool calling, and full observability tracing.</p>
+        </div>
+        <button type="button" class="btn-close" onclick="closeKeyModal()" title="Go Back to Dashboard">✕</button>
+      </div>
+
+      <form id="keyForm" onsubmit="event.preventDefault(); handleKeySubmit();">
+        <div class="form-group">
+          <label for="apiKeyInput">Gemini API Key</label>
+          <div class="input-password-wrapper">
+            <input 
+              type="password" 
+              id="apiKeyInput" 
+              placeholder="AIzaSy... (or leave blank if saved in .env)" 
+              autocomplete="off" 
+              spellcheck="false"
+            >
+            <button type="button" class="btn-toggle-pw" onclick="togglePasswordVisibility('apiKeyInput')">👁️</button>
+          </div>
+          <small class="form-hint" id="apiKeyStatusHint">
+            Don't have one? Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
+          </small>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="modelSelect">AI Model</label>
+            <select id="modelSelect">
+              <option value="gemini-2.5-flash" selected>gemini-2.5-flash (Fast & Recommended)</option>
+              <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+              <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Reasoning)</option>
+              <option value="gpt-4o-mini">OpenAI gpt-4o-mini</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-checkbox">
+          <input type="checkbox" id="saveLocalEnv" checked>
+          <label for="saveLocalEnv">Save key to local <code>.env</code> file</label>
+        </div>
+
+        <div class="modal-actions modal-actions-stack">
+          <button type="submit" class="btn btn-primary btn-glow" id="saveKeyBtn">
+            <span>Save & Enter Dashboard</span> 🚀
+          </button>
+          <div class="modal-actions-row">
+            <button type="button" class="btn btn-secondary flex-1" onclick="continueInDemoMode()">
+              Try in Demo Mode ⚡
+            </button>
+            <button type="button" class="btn btn-outline flex-1" onclick="closeKeyModal()">
+              ← Go Back
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Past Traces Modal -->
+  <div id="tracesModal" class="modal-overlay hidden">
+    <div class="modal-card modal-wide">
+      <div class="modal-header flex-between">
+        <div>
+          <h2>Telemetry & Trace History</h2>
+          <p>Inspect past agent sessions, latencies, and tool calling executions.</p>
+        </div>
+        <div class="flex-align-center gap-sm">
+          <button type="button" class="btn btn-outline btn-xs btn-danger" onclick="clearAllTraces()" title="Delete all saved traces">
+            🗑️ Clear All
+          </button>
+          <button type="button" class="btn-close" onclick="closeTracesModal()">✕</button>
+        </div>
+      </div>
+      <div class="traces-list-container" id="tracesListContainer">
+        <div class="spinner-small"></div> Loading traces...
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App Shell -->
+  <div class="app-container">
+    <!-- Navbar -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <div class="logo-icon">🌤️</div>
+        <div>
+          <h1 class="brand-title">MeteoAgent <span class="gradient-text">AI</span></h1>
+          <span class="brand-subtitle">Real-time Weather & Observability Tracing</span>
+        </div>
+      </div>
+
+      <div class="nav-status-group">
+        <div class="status-pill" id="agentStatusPill">
+          <span class="status-dot"></span>
+          <span id="agentStatusLabel">Ready</span>
+        </div>
+        <div class="provider-pill" id="providerPill" onclick="openKeyModal()">
+          <span class="provider-icon">💎</span>
+          <span id="providerLabel">Gemini</span>
+          <span class="edit-hint">Change ⚙️</span>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="openTracesModal()">
+          📜 Traces <span id="traceCounterBadge" class="badge-count">0</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="dashboard-grid">
+      <!-- Search & Query Section -->
+      <section class="search-section card-glass">
+        <div class="search-header">
+          <h2>Ask Weather Agent</h2>
+          <p>Inquire about any city's live conditions, multi-day forecasts, clothing advice, or comparisons.</p>
+        </div>
+
+        <form id="searchForm" class="search-form" onsubmit="event.preventDefault(); submitPrompt();">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input 
+              type="text" 
+              id="promptInput" 
+              placeholder="e.g., What is the weather in Tokyo right now? Or compare London and Paris..."
+              autocomplete="off"
+              required
+            >
+            <button type="submit" class="btn btn-primary" id="btnSubmitQuery">
+              <span id="btnQueryText">Ask Agent</span>
+              <span id="btnQuerySpinner" class="spinner-small hidden"></span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Quick Chips -->
+        <div class="quick-chips">
+          <span class="chips-label">Quick Prompts:</span>
+          <button class="chip" onclick="applyQuickPrompt('What is the weather right now in Tokyo?')">🗼 Tokyo now</button>
+          <button class="chip" onclick="applyQuickPrompt('What is the 3-day forecast for London?')">🇬🇧 London 3-Day</button>
+          <button class="chip" onclick="applyQuickPrompt('How is the weather in New York compared to Paris?')">🗽 NY vs Paris</button>
+          <button class="chip" onclick="applyQuickPrompt('Will it rain in Lahore tomorrow?')">🌧️ Rain in Lahore?</button>
+          <button class="chip" onclick="applyQuickPrompt('What is the current temperature and wind in Dubai?')">🏜️ Dubai Current</button>
+        </div>
+      </section>
+
+      <!-- Agent Status Banner (when executing) -->
+      <div id="executingBanner" class="executing-banner hidden">
+        <div class="spinner-pulse"></div>
+        <div class="executing-text">
+          <h4 id="executingStepTitle">Agent Thinking...</h4>
+          <p id="executingStepDesc">Dispatching OpenAI SDK function calls to Open-Meteo API</p>
+        </div>
+      </div>
+
+      <!-- Real-Time Weather Widgets Grid -->
+      <section id="weatherWidgetsArea" class="weather-widgets-grid">
+        <!-- Hero Weather Card -->
+        <div class="card-glass weather-hero-card" id="weatherHeroCard">
+          <div class="hero-top">
+            <div>
+              <div class="location-badge" id="heroLocationBadge">📍 Tokyo, Japan</div>
+              <div class="hero-time" id="heroLocalTime">Local Time: --:--</div>
+            </div>
+            <div class="condition-emoji-huge" id="heroConditionEmoji">🌤️</div>
+          </div>
+
+          <div class="hero-center">
+            <div class="hero-temp-group">
+              <div class="hero-temp" id="heroTemp">22°C</div>
+              <div class="hero-feels" id="heroFeelsLike">Feels like 25°C</div>
+            </div>
+            <div class="hero-condition-pill" id="heroConditionPill">Partly cloudy ⛅</div>
+          </div>
+
+          <!-- Mini Metrics Row -->
+          <div class="hero-metrics-bar">
+            <div class="mini-metric">
+              <span class="m-icon">💧</span>
+              <div>
+                <span class="m-label">Humidity</span>
+                <span class="m-value" id="metricHumidity">88%</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="m-icon">💨</span>
+              <div>
+                <span class="m-label">Wind Speed</span>
+                <span class="m-value" id="metricWind">2.5 km/h</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="m-icon">🌧️</span>
+              <div>
+                <span class="m-label">Precipitation</span>
+                <span class="m-value" id="metricPrecip">0.0 mm</span>
+              </div>
+            </div>
+            <div class="mini-metric">
+              <span class="m-icon">☀️</span>
+              <div>
+                <span class="m-label">Day/Night</span>
+                <span class="m-value" id="metricDayNight">Night</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Agent Synthesis Card -->
+        <div class="card-glass ai-answer-card">
+          <div class="card-header flex-between">
+            <div class="flex-align-center gap-sm">
+              <span class="ai-sparkle">🤖</span>
+              <h3>Agent Synthesis & Advice</h3>
+            </div>
+            <span class="verified-tag">✓ Verified Open-Meteo Data</span>
+          </div>
+          <div class="ai-content-body" id="aiAnswerBody">
+            <p class="placeholder-text">Submit a weather inquiry or click a quick prompt above to see the agent's real-time reasoning and weather response.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Multi-day Forecast Section -->
+      <section id="forecastSection" class="card-glass forecast-section hidden">
+        <div class="card-header flex-between">
+          <div class="flex-align-center gap-sm">
+            <span>📅</span>
+            <h3 id="forecastTitle">Multi-Day Forecast</h3>
+          </div>
+          <span class="forecast-count-badge" id="forecastCountBadge">3 Days</span>
+        </div>
+        <div class="forecast-cards-container" id="forecastCardsContainer">
+          <!-- Dynamic forecast cards injected here -->
+        </div>
+      </section>
+
+      <!-- Execution Trace Waterfall & Observability -->
+      <section class="card-glass trace-inspector-card" id="traceInspector">
+        <div class="trace-card-header flex-between">
+          <div class="flex-align-center gap-sm">
+            <span class="trace-pulse-icon">🔍</span>
+            <div>
+              <h3>Agent Execution Tracing</h3>
+              <span class="trace-id-badge" id="traceIdBadge">trace_pending</span>
+            </div>
+          </div>
+          <div class="trace-header-actions">
+            <button class="btn btn-outline btn-xs" onclick="copyTraceJson()">📋 Copy Trace JSON</button>
+            <button class="btn btn-outline btn-xs" onclick="downloadTraceJson()">💾 Download</button>
+            <button class="btn btn-outline btn-xs btn-danger" onclick="deleteCurrentTrace()" title="Delete this trace file">🗑️ Delete Trace</button>
+          </div>
+        </div>
+
+        <!-- Trace Stats Bar -->
+        <div class="trace-metrics-bar">
+          <div class="t-stat">
+            <span class="t-label">Status</span>
+            <span class="t-val text-green" id="traceStatStatus">SUCCESS</span>
+          </div>
+          <div class="t-stat">
+            <span class="t-label">Total Latency</span>
+            <span class="t-val text-yellow" id="traceStatDuration">0 ms</span>
+          </div>
+          <div class="t-stat">
+            <span class="t-label">Model</span>
+            <span class="t-val" id="traceStatModel">gemini-2.5-flash</span>
+          </div>
+          <div class="t-stat">
+            <span class="t-label">Tokens (Prompt / Compl)</span>
+            <span class="t-val text-cyan" id="traceStatTokens">0 / 0</span>
+          </div>
+          <div class="t-stat">
+            <span class="t-label">Total Tokens</span>
+            <span class="t-val font-bold" id="traceStatTotalTokens">0</span>
+          </div>
+        </div>
+
+        <!-- Trace Waterfall Tree -->
+        <div class="trace-timeline-container" id="traceTimelineContainer">
+          <div class="timeline-empty">No trace active yet. Submit a prompt to view live step spans.</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div>
+        <span>🌤️ MeteoAgent AI</span> • OpenAI SDK + Google Gemini • Open-Meteo Free API (No Key Required)
+      </div>
+      <div class="footer-links">
+        <a href="javascript:void(0)" onclick="openKeyModal()">Configure API Key</a>
+        <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo Documentation</a>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
