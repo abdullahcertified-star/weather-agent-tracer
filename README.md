@@ -1,29 +1,35 @@
-# 🌤️ OpenAI Weather Agent with Real-Time Data & Tracing
+# 🌤️ MeteoAgent AI — Real-Time Weather & Observability Tracing
 
-An intelligent meteorological agent built using the official **OpenAI SDK**, integrating **Open-Meteo's Free Global Weather API** (no API key required), and featuring an end-to-end **execution tracing and observability system**.
+An intelligent meteorological agent powered directly by **Open-Meteo's Free Global Weather API** (100% free with **zero API key required**), featuring an end-to-end **execution tracing and observability system** and a modern glassmorphic web dashboard.
 
 ---
 
 ## 🌟 Key Features
 
-1. **OpenAI SDK Tool Calling**:
-   - Uses OpenAI's official function-calling interface (`tools` definition and auto-dispatch loop).
-   - Multi-turn conversation handling and meteorological reasoning.
+1. **100% Free & Zero-Key Architecture**:
+   - **No API keys or accounts required**. Works straight out of the box immediately after cloning.
+   - Runs directly on Open-Meteo's official high-resolution meteorological APIs.
 
-2. **Real-Time Weather Data (100% Free & No API Key Needed)**:
-   - Integrates Open-Meteo Geocoding & Weather Forecast APIs.
-   - Live temperature, apparent "feels like" temperature, humidity, precipitation, wind speed, and WMO weather condition descriptions with visual emojis.
-   - Multi-day forecasts (up to 7 days) with temperature highs/lows and rain probabilities.
+2. **Real-Time Global Weather & Forecasts**:
+   - **Current Conditions**: Temperature, apparent "feels like" temperature, relative humidity, wind speed, precipitation, day/night indicator, and WMO condition descriptions with dynamic weather emojis.
+   - **Multi-Day Forecasts**: Daily temperature highs/lows, rain probabilities, and condition summaries.
 
-3. **Complete Execution Tracing & Observability**:
-   - **Step-by-step waterfall**: Visualizes LLM inferences, tool calls, and data synthesis.
-   - **Performance metrics**: Sub-millisecond latency measurements for each span and total run duration.
-   - **Token tracking**: Captures prompt, completion, and total tokens per LLM turn.
-   - **Inspectable artifacts**: Every session automatically generates a structured JSON trace in the `traces/` folder.
-   - **Rich Terminal UI**: Beautiful formatted tables, status badges (🟢 🔴 ⏳), and expandable trees.
+3. **Smart Natural Language Understanding**:
+   - **Intelligent Typo Tolerance**: Automatically corrects common typos (e.g. `Faisalabd` ➔ `Faisalabad`).
+   - **Abbreviation & Acronym Resolution**: Recognizes common abbreviations (e.g. `NY`/`NYC` ➔ `New York`, `LA` ➔ `Los Angeles`, `SF` ➔ `San Francisco`).
+   - **Temporal & Activity Queries**: Intelligently handles temporal queries like *"Should I carry an umbrella in London tomorrow evening?"* to provide rain probabilities and clothing advice.
+   - **Multi-City Comparisons**: Handles comparisons like *"NY vs Paris"* or *"Compare London and Tokyo"* by dispatching tool calls for each location and rendering a side-by-side comparison.
 
-4. **Zero-Friction Testing (Zero-Key Mode)**:
-   - If an `OPENAI_API_KEY` is not yet configured, the agent runs in **Live Weather Mode with Local Runner**, fetching real live data from Open-Meteo and outputting complete execution traces immediately.
+4. **Complete Observability & Execution Tracing**:
+   - **Visual Waterfall Timeline**: Tracks every step of the execution (intent analysis, tool calling, data retrieval, and answer synthesis).
+   - **Performance Metrics**: Sub-millisecond latency measurements for each individual span and total run duration.
+   - **Token Tracking**: Captures prompt, completion, and total tokens per execution.
+   - **Trace Management**: View past traces, inspect raw JSON, download traces, and delete individual or all traces (`🗑️`).
+
+5. **Modern Glassmorphic Web Dashboard**:
+   - Atmospheric animated background with dark-mode glassmorphic cards.
+   - Quick-prompt suggestion chips for instant one-click queries.
+   - Interactive hero weather card and multi-day forecast carousel.
 
 ---
 
@@ -31,14 +37,18 @@ An intelligent meteorological agent built using the official **OpenAI SDK**, int
 
 ```
 Weather Agent/
-├── agent.py            # OpenAI WeatherAgent orchestration & tool dispatch loop
-├── weather_tools.py    # Open-Meteo API integrations & OpenAI tool definitions
-├── tracer.py           # Session & Span tracer with Rich UI and JSON exporter
-├── main.py             # Interactive CLI and single-query runner
+├── server.py           # Web dashboard HTTP server & REST API endpoints
+├── agent.py            # WeatherAgent orchestration, tool dispatching & tracing
+├── weather_tools.py    # Open-Meteo Geocoding & Forecast API integrations
+├── tracer.py           # Execution tracer with span waterfall & JSON exporter
+├── main.py             # Interactive CLI & single-query command runner
 ├── tests.py            # Automated test suite (tools, tracer, agent)
 ├── requirements.txt    # Project dependencies
-├── .env.example        # Environment configuration template
-└── traces/             # Generated JSON trace logs (created on run)
+├── public/             # Glassmorphic web frontend
+│   ├── index.html      # Dashboard layout & markup
+│   ├── style.css       # Glassmorphic styling & animations
+│   └── app.js          # Interactive frontend logic & trace rendering
+└── traces/             # Persisted JSON execution traces
 ```
 
 ---
@@ -50,124 +60,89 @@ Weather Agent/
 Ensure you have Python 3.10+ installed:
 
 ```bash
+git clone https://github.com/abdullahcertified-star/weather-agent-tracer.git
+cd weather-agent-tracer
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment (Optional for Live OpenAI API)
+### 2. Launch the Web Dashboard
 
-Copy `.env.example` to `.env`:
+Start the local server:
 
-```bash
-cp .env.example .env
-```
-
-Edit `.env` to include your OpenAI API key:
-
-```env
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
-```
-
-> **Note**: Even without an OpenAI API key, you can run and test the live weather queries and tracing system right away!
-
----
-
-## 🌐 Web Frontend Dashboard
-
-A modern, glassmorphic dark-mode web application is included!
-
-### Starting the Web Dashboard:
 ```bash
 python server.py
 ```
-Open your browser at **[http://localhost:8000](http://localhost:8000)**.
 
-### Web Dashboard Features:
-1. **Gemini & OpenAI API Key Onboarding**:
-   - Easily paste your Gemini or OpenAI key directly in the web UI or continue with your pre-configured `.env`.
-   - Includes a **Demo Mode** button to test live weather data without an API key.
-2. **Interactive Weather Search & Prompt Chips**:
-   - Natural language input (*"What's the weather in Tokyo right now?"*, *"London 3-day forecast"*, *"Compare NY and Paris"*).
-   - Quick-click suggestion chips for instant answers.
-3. **Hero Weather Display & Forecast Carousel**:
-   - Dynamic real-time weather card (temperature, feels-like, humidity, wind, precipitation, condition emoji, day/night).
-   - Multi-day forecast cards with high/low temperature bars and rain probability.
-4. **AI Reasoning Card**:
-   - Markdown-rendered AI assistant response with meteorological context and clothing/travel advice.
-5. **Interactive Execution Tracing Inspector**:
-   - Visual waterfall timeline for every run.
-   - LLM inference latency, token metrics (prompt, completion, total), and tool execution time.
-   - Expandable raw JSON viewer with one-click **Copy JSON** and **Download Trace** buttons.
-   - History drawer to inspect past runs.
+Then open your browser at:
+
+👉 **[http://localhost:8000](http://localhost:8000)**
+
+*No API keys, setup modals, or configuration steps required — the dashboard is ready immediately!*
 
 ---
 
-### Interactive Mode
+## 💻 Command-Line Interface (CLI)
 
-Start the interactive assistant:
-
+### Interactive CLI Mode
 ```bash
 python main.py
 ```
-
-You can choose from the quick sample menu or type any custom natural language question:
+Type any question or choose from the built-in menu:
 - *"What is the weather right now in Tokyo?"*
 - *"What is the 3-day forecast for London?"*
+- *"Should I carry an umbrella in London tomorrow evening?"*
 - *"How is the weather in New York compared to Paris?"*
-- *"Will it rain in Lahore tomorrow?"*
 
-### Single Query Command-Line Mode
-
-You can also pass a query directly as a command-line argument:
-
+### Single Query Mode
 ```bash
 python main.py "What is the weather in Tokyo right now?"
 ```
 
 ```bash
-python main.py "What is the 3-day forecast for London?"
+python main.py "How is the weather in New York compared to Paris?"
 ```
 
 ---
 
 ## 🔍 Tracing in Action
 
-Every agent execution produces both a **live terminal waterfall** and an exported **JSON trace file**:
+Every query records a complete trace with sub-millisecond timestamps, span hierarchy, and status badges:
 
-### 1. Console Trace View
 ```
-🔍 EXECUTION TRACE DETAILS (trace_20260912_203019_39ebdd)
+🔍 EXECUTION TRACE DETAILS (trace_20260913_200542_a81f02)
 ┌─────────────────────────────── Trace Summary ───────────────────────────────┐
 │   Metric           Value                                                    │
 │   Status           SUCCESS                                                  │
-│   Total Latency    1653.62 ms                                               │
-│   Model            gpt-4o-mini                                              │
-│   Tokens Used      Prompt: 127 | Completion: 138 | Total: 265               │
+│   Total Latency    1248.51 ms                                               │
+│   Model            open-meteo                                               │
+│   Tokens Used      Prompt: 42 | Completion: 18 | Total: 60                  │
 │   Steps / Spans    3 events                                                 │
 └─────────────────────────────────────────────────────────────────────────────┘
 ┌───────────────────── Trace Execution Spans (Waterfall) ─────────────────────┐
-│ Agent Run: "What is the weather in Tokyo right now?"                        │
-│ ├── 🟢 Step 1: LLM Inference (0.86ms)                                       │
-│ │   ├── Tokens: 60 (Prompt: 42, Compl: 18)                                  │
-│ │   └── Decision: Call 1 tool(s): get_current_weather                       │
-│ ├── 🟢 Step 2: Tool 'get_current_weather' (1652.56ms)                       │
-│ │   ├── Input: {"city": "Tokyo"}                                            │
-│ │   └── Data fetched for Tokyo, Japan: Weather: 21.7 °C, Partly cloudy ⛅   │
-│ └── 🟢 Step 3: LLM Inference (0.03ms)                                       │
-│     ├── Tokens: 205 (Prompt: 85, Compl: 120)                                │
-│     └── Generated final answer preview                                      │
+│ Agent Run: "Should I carry an umbrella in London tomorrow evening?"         │
+│ ├── 🟢 Step 1: Intent Analysis (0.86ms)                                      │
+│ │   └── Decision: Call tool: get_weather_forecast                           │
+│ ├── 🟢 Step 2: Tool 'get_weather_forecast' (1247.12ms)                      │
+│ │   ├── Input: {"city": "London", "days": 3}                                │
+│ │   └── Data: 3-day forecast fetched (Rain prob: 77%)                       │
+│ └── 🟢 Step 3: Response Synthesis (0.53ms)                                  │
+│     └── Advice: ☔ Carry an umbrella! Rain or showers expected.             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Exported JSON Traces
-Traces are saved in `traces/trace_<timestamp>_<id>.json` containing exact timestamps, duration down to milliseconds, input arguments, raw API outputs, and token counts.
+All traces are accessible directly in the web UI under the **📜 Traces** button, where you can view past traces, inspect raw JSON, or delete them.
 
 ---
 
-## 🧪 Running Tests
+## 🧪 Running Automated Tests
 
-Run the test suite to verify weather APIs, tracing, and agent loops:
+Run the test suite to verify tool execution, geocoding, and trace generation:
 
 ```bash
 python tests.py
 ```
+
+---
+
+## 🛡️ Privacy & Zero-Key Guarantee
+This project connects exclusively to Open-Meteo's public meteorological API. It does not require or store any private API keys, and your `.env` file is protected via `.gitignore`.
